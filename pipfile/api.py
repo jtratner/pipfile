@@ -1,3 +1,4 @@
+import attr
 import toml
 
 import codecs
@@ -86,6 +87,59 @@ class PipfileParser(object):
         # Update the data structure with group information.
         data.update(self.groups)
         return data
+
+
+@attr.s(frozen=True)
+class Source(object):
+    #: URL to PyPI instance
+    url = attr.ib(default='')
+    #: If False, skip SSL checks
+    verify_ssl = attr.ib(default=True, validator=attr.validators.optional(attr.validators.instance_of(bool)))
+    #: human name to refer to this source (can be referenced in packages or dev-packages)
+    name = attr.ib(default='')
+
+_optional_instance_of = lambda cls: attr.validators.optional(attr.validators.instance_of(cls))
+
+
+@attr.s(frozen=True)
+class Requires(object):
+    """System-level requirements - see PEP508 for more detail"""
+    os_name = attr.ib(default=None)
+    sys_platform = attr.ib(default=None)
+    platform_machine = attr.ib(default=None)
+    platform_python_implementation = attr.ib(default=None)
+    platform_release = attr.ib(default=None)
+    platform_system = attr.ib(default=None)
+    platform_version = attr.ib(default=None)
+    python_version = attr.ib(default=None)
+    python_full_version = attr.ib(default=None)
+    implementation_name = attr.ib(default=None)
+    implementation_version = attr.ib(default=None)
+
+@attr.s(frozen=True)
+class VCSRequirement(object):
+    #: vcs reference name (branch / commit / tag)
+    ref = attr.ib(default=None)
+    #: path to hit - without any of the VCS prefixes (like git+ / http+ / etc)
+    uri = attr.ib(default=None)
+    subdirectory = attr.ib(default=None)
+
+
+
+
+@attr.s(frozen=True)
+class PackageRequirement(object):
+    #: pypi name (internally normalized via something like, e.g., pkg_resources.safe_name)
+    name = attr.ib(default=None)
+    #: extra requirements - see pip / setuptools docs for more
+    extras = attr.ib(default=tuple(),
+                     validator=_optional_instance_of(tuple))
+    specs = attr.ib(default=None)
+    editable = attr.ib(default=False)
+    vcs = attr.ib(default=None,
+                  validator=_optional_instance_of(VCSRequirement))
+    # "specs" in pip requirement
+    version = attr.ib(default=None)
 
 
 class Pipfile(object):
