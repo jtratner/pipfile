@@ -142,87 +142,17 @@ class PackageRequirement(object):
     version = attr.ib(default=None)
 
 
+@attr.s(frozen=True)
+class RequirementSet(object):
+    packages = attr.ib(validator=_optional_instance_of(PackageRequirement))
+
+
 class Pipfile(object):
-    def __init__(self, filename):
-        super(Pipfile, self).__init__()
-        self.filename = filename
-        self.data = None
-
-    @staticmethod
-    def find(max_depth=3):
-        """Returns the path of a Pipfile in parent directories."""
-        i = 0
-        for c, d, f in os.walk(os.getcwd(), topdown=False):
-            if i > max_depth:
-                raise RuntimeError('No Pipfile found!')
-            elif 'Pipfile' in f:
-                return os.path.join(c, 'Pipfile')
-            i += 1
-
-    @classmethod
-    def load(klass, filename):
-        """Load a Pipfile from a given filename."""
-        p = PipfileParser(filename=filename)
-        pipfile = klass(filename=filename)
-        pipfile.data = p.parse()
-        return pipfile
-
-    @property
-    def hash(self):
-        """Returns the SHA256 of the pipfile's data."""
-        content = json.dumps(self.data, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(content.encode("utf8")).hexdigest()
-
-    @property
-    def contents(self):
-        """Returns the contents of the pipfile."""
-        with codecs.open(self.filename, 'r', 'utf-8') as f:
-            return f.read()
-
-    def lock(self):
-        """Returns a JSON representation of the Pipfile."""
-        data = self.data
-        data['_meta']['hash'] = {"sha256": self.hash}
-        data['_meta']['pipfile-spec'] = 6
-        return json.dumps(data, indent=4, separators=(',', ': '))
-
-    def assert_requirements(self):
-        """"Asserts PEP 508 specifiers."""
-
-        # Support for 508's implementation_version.
-        if hasattr(sys, 'implementation'):
-            implementation_version = format_full_version(sys.implementation.version)
-        else:
-            implementation_version = "0"
-
-        # Default to cpython for 2.7.
-        if hasattr(sys, 'implementation'):
-            implementation_name = sys.implementation.name
-        else:
-            implementation_name = 'cpython'
-
-        lookup = {
-            'os_name': os.name,
-            'sys_platform': sys.platform,
-            'platform_machine': platform.machine(),
-            'platform_python_implementation': platform.python_implementation(),
-            'platform_release': platform.release(),
-            'platform_system': platform.system(),
-            'platform_version': platform.version(),
-            'python_version': platform.python_version()[:3],
-            'python_full_version': platform.python_version(),
-            'implementation_name': implementation_name,
-            'implementation_version': implementation_version
-        }
-
-        # Assert each specified requirement.
-        for marker, specifier in self.data['_meta']['requires'].items():
-
-            if marker in lookup:
-                try:
-                    assert lookup[marker] == specifier
-                except AssertionError:
-                    raise AssertionError('Specifier {!r} does not match {!r}.'.format(marker, specifier))
+    #: source filename
+    filename = attr.ib()
+    sources = attr.ib(validator=iterable_of(Source))
+    packages = attr.ib(validator=_optional_instance_of(RequirementSet))
+    dev_packages = attr.ib(validator=_optional_instance_of(RequirementSet))
 
 
 def load(pipfile_path=None):
